@@ -1,27 +1,23 @@
-"""Config-driven training entry point. Every run is driven by a YAML config.
+"""Config-driven training entry point. Every run is driven by a Hydra config.
 
 Usage:
-    python -m asteroids_rl.train --config configs/ppo.yaml
+    python -m asteroids_rl.train --config-name=ppo
+    python -m asteroids_rl.train --config-name=dqn total_timesteps=10000 wandb.enabled=false
 """
 
 from __future__ import annotations
 
-import argparse
 import time
 from pathlib import Path
 
-import yaml
+import hydra
+from omegaconf import DictConfig, OmegaConf
 from stable_baselines3 import DQN, PPO
 
 from asteroids_rl.callbacks import build_callbacks
 from asteroids_rl.env import make_env
 
 ALGOS = {"ppo": PPO, "dqn": DQN}
-
-
-def load_config(path: str) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
 
 
 def linear_schedule(initial: float):
@@ -90,11 +86,10 @@ def train(config: dict) -> Path:
     return final_path
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=str, required=True, help="Path to YAML config")
-    args = parser.parse_args()
-    path = train(load_config(args.config))
+@hydra.main(version_base=None, config_path="../../configs", config_name="ppo")
+def main(cfg: DictConfig) -> None:
+    config = OmegaConf.to_container(cfg, resolve=True)
+    path = train(config)
     print(f"Saved final model to {path}.zip")
 
 

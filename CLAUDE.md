@@ -24,35 +24,10 @@ ships Asteroids as a ready, standardized environment: `ALE/Asteroids-v5`.
 This is the exact environment used in RL research and industry, which is why
 it's the right call for a portfolio. Your only job is the *training pipeline*.
 
-```python
-import gymnasium as gym
-env = gym.make("ALE/Asteroids-v5", render_mode="rgb_array")
-```
+## 3. Algorithm Choice
 
-ROMs install via AutoROM (handled by the `[extra]` / `[accept-rom-license]`
-extras — see setup below).
-
-## 3. Tech Stack
-
-Chosen so each item is something employers actively look for on a resume.
-
-| Layer | Tool | Why it signals well |
-|---|---|---|
-| Language | **Python 3.11+** | RL/ML standard |
-| Env | **Gymnasium + ALE-py** (Farama) | The current industry standard (Gym is deprecated) |
-| RL algorithms | **Stable-Baselines3** (PyTorch) | Trusted, reliable implementations; shows you know not to reinvent wheels |
-| DL backend | **PyTorch 2.3+** | Most in-demand DL framework |
-| Experiment tracking | **Weights & Biases (wandb)** | Widely used at ML companies; shows MLOps maturity |
-| Config | **Hydra** or YAML + `argparse` | Reproducible, parameterized experiments |
-| Packaging/env | **uv** (or venv + pip) | Modern, fast Python dependency management |
-| Testing | **pytest** | Demonstrates engineering discipline |
-| Lint/format | **ruff** + **black** | Clean-code signal |
-| CI | **GitHub Actions** | Shows you ship production-grade repos |
-| Containerization | **Docker** | Reproducibility; a strong hireability signal |
-| Video/eval | Gymnasium `RecordVideo` wrapper | Tangible demo of results |
-
-**Algorithm choice:** Start with **PPO** (stable, parallelizable, strong on
-Atari). Then train **DQN** as a second baseline so you can *compare* — comparison
+Train **PPO first** — it's more stable and faster to tune than DQN on Atari.
+Then train **DQN** as a second baseline so you can *compare* — comparison
 tables and plots are what make a portfolio project look rigorous.
 
 ## 4. Repository Structure
@@ -93,37 +68,155 @@ uv pip install "stable-baselines3[extra]" "gymnasium[atari,accept-rom-license]" 
 `stable-baselines3[extra]` pulls in the Atari preprocessing helper
 `make_atari_env` plus ROM handling. Requires Python >= 3.10.
 
-## 6. Implementation Plan (phased)
+## 6. Workload Split
 
-**Phase 0 — Scaffolding**
-- Create GitHub repo `asteroids-rl`, init with README + .gitignore (Python).
-- Create the project folder under the user's home dir, set up venv, commit skeleton.
-- Add ruff/black config and a passing pytest stub. Wire GitHub Actions CI.
+Your local machine is for writing code and reviewing results. The heavy lifting
+runs elsewhere:
 
-**Phase 1 — Environment**
-- Implement `make_env()` using SB3's `make_atari_env` (handles grayscale,
-  resize to 84×84, frame-stacking of 4, frame-skip, sticky actions).
-- Add a `random_agent` sanity check + record baseline mean reward.
+```
+Your PC          →  push code, watch W&B dashboard, download milestone videos
+GitHub Actions   →  runs pytest automatically on every push (free, zero local effort)
+Cloud GPU        →  trains PPO/DQN, saves checkpoints, records milestone videos
+W&B              →  streams live reward curves + stores checkpoint videos for download
+```
 
-**Phase 2 — Train PPO**
-- `train.py` reads `configs/ppo.yaml`, runs vectorized envs (`n_envs=8`),
-  logs to wandb + TensorBoard, checkpoints best model.
-- Start ~1M steps to validate the loop, then scale to 10M.
+You never need to run the test suite locally unless you're debugging a specific
+failure — CI handles it. You never need to run long training runs locally either.
 
-**Phase 3 — Train DQN (comparison baseline)**
-- Same pipeline, `configs/dqn.yaml`. Reuse callbacks.
+**Recommended cloud GPU providers (cheapest to most convenient):**
 
-**Phase 4 — Evaluate & visualize**
-- `evaluate.py`: 30 episodes, report mean ± std vs random baseline.
-- `record.py`: save an MP4/GIF of the best agent for the README.
-- Generate reward-curve plots into `reports/`.
+| Provider | Notes | Approx. cost |
+|---|---|---|
+| Vast.ai / RunPod | Cheapest $/hr, most control, best for long runs | ~$0.10–0.40/hr (T4 / RTX 3090) |
+| Kaggle Notebooks | Free GPU quota (~30 hrs/week), no setup required | Free |
+| Google Colab Pro | Easy notebooks, decent GPUs | ~$10/mo |
+| Lambda Labs | Clean UI, reliable, slightly pricier | ~$0.50/hr |
 
-**Phase 5 — Polish**
-- README with results table (Random vs PPO vs DQN), training curves, gameplay
-  gif, and exact reproduce commands.
-- Dockerfile so anyone can run it. Confirm CI is green.
+For a portfolio project, **RunPod or Vast.ai** give the most control and are
+most cost-effective for multi-hour PPO/DQN runs. Kaggle is a good zero-cost
+option to validate the pipeline before committing to a paid run.
 
-## 7. Core Hyperparameters (starting points)
+## 7. Milestone Video Workflow
+
+Do **not** render video during training — it significantly slows down the run.
+Instead, save checkpoints throughout training and record clean gameplay videos
+from those checkpoints afterward (on the same cloud machine before it shuts down).
+
+```python
+# record_checkpoint.py
+import wandb
+from stable_baselines3 import PPO
+from gymnasium.wrappers import RecordVideo
+
+def record_checkpoint(checkpoint_path, step):
+    env = RecordVideo(make_env(), video_folder=f"./videos/{step}")
+    model = PPO.load(checkpoint_path)
+
+    obs, _ = env.reset()
+    for _ in range(5000):
+        action, _ = model.predict(obs, deterministic=True)
+        obs, _, done, trunc, _ = env.step(action)
+        if done or trunc:
+            obs, _ = env.reset()
+    env.close()
+
+    wandb.log({
+        f"gameplay/step_{step}": wandb.Video(f"./videos/{step}/agent.mp4")
+    })
+```
+
+Videos upload to W&B automatically and are downloadable from the dashboard
+at any time. The most compelling portfolio demo is a **progression montage**:
+early-checkpoint gameplay side by side with late-checkpoint gameplay.
+
+**Suggested checkpoint schedule for the before/after demo:**
+
+| Checkpoint | Steps | Purpose |
+|---|---|---|
+| Baseline | 0 (random agent) | Control — shows what chance looks like |
+| Early | 500k steps | Agent is just beginning to learn |
+| Mid | 3M steps | Visible improvement, not yet competent |
+| Late | 10M steps | Best trained behaviour |
+
+Training is measured in **steps** (individual frames/actions), not episodes.
+Meaningful visible improvement requires millions of steps. Frame portfolio
+comparisons as "early-step vs. late-step checkpoints", not "N tries vs M tries".
+
+## 8. Implementation Plan (phased)
+
+Phases 0 and 1 are complete. All remaining phases follow a **build-first**
+structure: write and wire every module before any long training run begins.
+
+---
+
+### ✅ Phase 0 — Scaffolding (complete)
+- GitHub repo `asteroids-rl` created, README + .gitignore committed.
+- Project folder set up, venv created, skeleton committed.
+- ruff/black config added, passing pytest stub wired, GitHub Actions CI live.
+
+### ✅ Phase 1 — Environment (complete)
+- `make_env()` implemented via SB3's `make_atari_env` (grayscale, 84×84,
+  4-frame stack, frame-skip, sticky actions).
+- Random agent sanity check added; baseline mean reward recorded.
+
+---
+
+### ✅ Phase 2 — Build Training Pipeline (complete)
+- `train.py` reads config via Hydra (`@hydra.main`, `--config-name=ppo|dqn`),
+  constructs vectorised envs (`n_envs=8`), initialises model, attaches
+  callbacks, runs `.learn()`. Values overridable on the CLI (e.g.
+  `total_timesteps=10000 wandb.enabled=false`).
+- `callbacks.py` wires `CheckpointCallback` (periodic `.zip` saves) +
+  `EvalCallback` (eval mean reward → W&B via `sync_tensorboard=True`).
+- `configs/ppo.yaml` and `configs/dqn.yaml` carry all hyperparameters (§9).
+- Smoke-tested at `total_timesteps=10000` for both PPO and DQN — loop runs
+  end-to-end, callbacks fire, `final_model.zip` saved.
+
+### ✅ Phase 3 — Build Evaluation & Recording Pipeline (complete)
+- `evaluate.py` loads a `.zip` checkpoint, runs N episodes, prints mean ± std
+  reward and the improvement factor vs the random baseline
+  (`reports/random_baseline.json`, `--baseline` to override).
+- `record.py` loads a checkpoint, records a full-game MP4 (`RecordVideo`), and
+  optionally uploads it to W&B as a video artifact (`--wandb`, see Section 7).
+- Smoke-tested both against the Phase 2 10k-step checkpoint.
+
+---
+> **All code is now written and wired. Do not proceed until both smoke-tests
+> pass and CI is green. From this point on, work moves to a cloud GPU machine.**
+>
+> Push all code to GitHub, spin up a cloud instance (see Section 6), clone the
+> repo, install deps, and run the commands below. Your local machine is now
+> just a dashboard viewer.
+---
+
+### Phase 4 — Cloud Training Runs
+- On the cloud machine, run PPO to 10M steps:
+  ```bash
+  python -m asteroids_rl.train --config-name=ppo
+  ```
+- Monitor live reward curves in the W&B dashboard from your PC.
+- After PPO completes, run `record.py` against each milestone checkpoint
+  (500k, 3M, 10M) before the instance shuts down. Videos upload to W&B.
+- Run DQN to 10M steps the same way:
+  ```bash
+  python -m asteroids_rl.train --config-name=dqn
+  ```
+- Record DQN milestone videos the same way.
+
+### Phase 5 — Evaluate & Report
+- Run `evaluate.py` against the best PPO and DQN checkpoints (30 episodes each).
+- Generate reward-curve comparison plots into `reports/` from W&B export.
+- Download milestone videos from W&B; assemble the progression montage.
+
+### Phase 6 — Polish
+- README: results table (Random vs PPO vs DQN), training curves, gameplay GIF,
+  exact reproduce commands.
+- Confirm Dockerfile works end-to-end.
+- Confirm CI is green on `main`.
+
+---
+
+## 9. Core Hyperparameters (starting points)
 
 **PPO (Atari defaults):** `n_envs=8`, `n_steps=128`, `batch_size=256`,
 `n_epochs=4`, `gamma=0.99`, `learning_rate=2.5e-4` (linearly decayed),
@@ -135,25 +228,18 @@ uv pip install "stable-baselines3[extra]" "gymnasium[atari,accept-rom-license]" 
 
 > Note: `CnnPolicy` is required — observations are raw pixels.
 
-## 8. Compute Notes
-
-Atari runs to ~10M steps. On CPU this is slow; a single GPU (e.g. T4) trains a
-comparable Atari game in ~8 hours. Validate the full loop at 1M steps first, then
-commit to a long run. Consider Colab/cloud GPU if no local GPU.
-
-## 9. Conventions for Claude Code
+## 10. Conventions for Claude Code
 
 - Keep env-building logic in **one** place (`env.py`) — never duplicate wrappers.
 - Every training run must be driven by a **config file**, never hardcoded params.
 - All runs log to **wandb** with the config attached, so experiments are
   comparable and reproducible.
-- Write a test before wiring a new module into the pipeline.
 - Prefer SB3's built-in helpers over custom implementations unless there's a
   concrete reason; document any deviation.
 
-## 10. Resume / Portfolio Framing
+## 11. Resume / Portfolio Framing
 
 When this is done, it demonstrates: deep RL (PPO + DQN), PyTorch, the modern
 Gymnasium/ALE stack, experiment tracking (wandb), reproducible configs,
 testing, CI/CD, and Docker — i.e. an *end-to-end ML engineering* project, not
-just a notebook. Lead the README with the results table and the gameplay gif.
+just a notebook. Lead the README with the results table and the gameplay GIF.

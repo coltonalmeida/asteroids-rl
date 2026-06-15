@@ -1,7 +1,7 @@
 """Evaluate a trained model or a random-action baseline over N episodes.
 
 Usage:
-    python -m asteroids_rl.evaluate --random --episodes 30
+    python -m asteroids_rl.evaluate --random --episodes 30 --out reports/random_baseline.json
     python -m asteroids_rl.evaluate --model models/ppo_best/best_model.zip --episodes 30
 """
 
@@ -14,6 +14,16 @@ from pathlib import Path
 import numpy as np
 
 from asteroids_rl.env import ENV_ID, make_env
+
+DEFAULT_BASELINE = "reports/random_baseline.json"
+
+
+def load_baseline(path: str) -> dict | None:
+    """Load a previously recorded random-agent baseline, if present."""
+    p = Path(path)
+    if not p.exists():
+        return None
+    return json.loads(p.read_text())
 
 
 def run_random_baseline(env_id: str, episodes: int, seed: int = 42) -> tuple[float, float]:
@@ -54,6 +64,12 @@ def main() -> None:
     parser.add_argument("--env-id", type=str, default=ENV_ID)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out", type=str, default=None, help="Optional JSON output path")
+    parser.add_argument(
+        "--baseline",
+        type=str,
+        default=DEFAULT_BASELINE,
+        help="Random-baseline JSON to compare a model against (default: %(default)s)",
+    )
     args = parser.parse_args()
 
     if args.random == (args.model is not None):
@@ -68,6 +84,22 @@ def main() -> None:
 
     result = {"agent": label, "episodes": args.episodes, "mean_reward": mean, "std_reward": std}
     print(json.dumps(result, indent=2))
+
+    if not args.random:
+        baseline = load_baseline(args.baseline)
+        if baseline is None:
+            print(f"\n(no baseline found at {args.baseline} — skipping comparison)")
+        else:
+            base_mean = baseline["mean_reward"]
+            factor = mean / base_mean if base_mean else float("inf")
+            print(
+                f"\nvs random baseline ({args.baseline}):\n"
+                f"  random: {base_mean:.1f} ± {baseline['std_reward']:.1f} "
+                f"({baseline['episodes']} eps)\n"
+                f"  model:  {mean:.1f} ± {std:.1f} ({args.episodes} eps)\n"
+                f"  improvement: {factor:.2f}x ({mean - base_mean:+.1f} reward)"
+            )
+
     if args.out:
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(json.dumps(result, indent=2))
