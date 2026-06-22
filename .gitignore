@@ -17,6 +17,10 @@ reports/*.png
 outputs/
 .hydra/
 
+# Secrets / local env
+.env
+.env.*
+
 # Tooling
 .pytest_cache/
 .ruff_cache/
@@ -25,3 +29,7 @@ outputs/
 .DS_Store
 .vscode/
 .idea/
+
+# Local-only docs (ignored for now)
+CLAUDE.md
+README.md
