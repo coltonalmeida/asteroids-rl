@@ -7,6 +7,8 @@ and reward clipping during training. Frame-stacking is added on top.
 
 from __future__ import annotations
 
+import sys
+
 import ale_py
 import gymnasium as gym
 from stable_baselines3.common.env_util import make_atari_env
@@ -34,12 +36,19 @@ def make_env(
     # SubprocVecEnv runs each env in its own process so multiple CPU cores are used during
     # training (n_envs > 1). DummyVecEnv (sequential, single core) is fine for n_envs == 1.
     vec_env_cls = SubprocVecEnv if n_envs > 1 else None
+    # Force the "fork" start method so workers inherit this process's ALE env registration
+    # (done at import above). SB3 defaults to "forkserver"/"spawn", which start clean
+    # processes that never run gym.register_envs(ale_py) -> "Namespace ALE not found".
+    # Safe because make_env() runs before any CUDA init. Fork is unavailable on Windows,
+    # where n_envs>1 is unsupported (use n_envs=1).
+    vec_env_kwargs = {"start_method": "fork"} if n_envs > 1 and sys.platform != "win32" else None
     vec_env = make_atari_env(
         env_id,
         n_envs=n_envs,
         seed=seed,
         wrapper_kwargs=wrapper_kwargs,
         vec_env_cls=vec_env_cls,
+        vec_env_kwargs=vec_env_kwargs,
     )
     vec_env = VecFrameStack(vec_env, n_stack=frame_stack)
     vec_env = VecTransposeImage(vec_env)
