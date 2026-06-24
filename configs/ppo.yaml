@@ -2,7 +2,7 @@
 algo: ppo
 env_id: ALE/SpaceInvaders-v5
 seed: 42
-total_timesteps: 1_000_000  # validate the loop at 1M, then scale to 10M
+total_timesteps: 10_000_000  # full run (validate the loop at 1M via CLI override first)
 
 n_envs: 8
 frame_stack: 4
@@ -21,7 +21,7 @@ hyperparams:
 eval:
   freq: 50_000        # per-env steps between eval runs
   episodes: 5
-checkpoint_freq: 100_000
+checkpoint_freq: 25_000   # policy-steps; ×n_envs(8) = a checkpoint every 200k env-steps (~50 over 10M) for the learning timelapse
 
 wandb:
   project: atari-rl
