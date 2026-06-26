@@ -23,15 +23,6 @@ Mean episode reward from evaluation — PPO is the best checkpoint (9.6M steps,
 The PPO agent was trained for 10M steps on a cloud GPU and more than doubles
 the score of random play.
 
-## What this project demonstrates
-
-- **Deep RL**: PPO trained from raw pixels with `CnnPolicy`
-- **Modern RL stack**: Gymnasium + Arcade Learning Environment, Stable-Baselines3 (PyTorch)
-- **Reproducible experiments**: every run driven by a Hydra config file, never hardcoded params
-- **Experiment tracking**: live reward curves and checkpoint videos logged to Weights & Biases
-- **Evaluation & reporting**: scripted N-episode evaluation with mean/std and improvement factor
-- **Engineering practices**: pytest, ruff/black, and a working Dockerfile
-
 ## Setup
 
 ```bash
@@ -56,6 +47,12 @@ python -m atari_rl.evaluate --model models/<run>/best/best_model.zip --episodes 
 # Record gameplay video (add --wandb to upload the clip to Weights & Biases)
 python -m atari_rl.record --model models/<run>/best/best_model.zip --step 10000000 --wandb
 ```
+
+### Running on a cloud GPU
+
+Training to 10M steps is GPU-heavy. You can run it on your own machine, or rent a cloud GPU
+(e.g. [RunPod](https://www.runpod.io/), Vast.ai, or Lambda Labs): clone the repo, `uv sync`,
+and run the same `train` command. The 10M-step run in the results above was trained this way.
 
 ## Development
 
