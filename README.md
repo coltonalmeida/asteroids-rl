@@ -1,8 +1,8 @@
 # space-invaders-rl
 
 End-to-end deep reinforcement learning pipeline that trains an agent to play
-**Atari Space Invaders** (`ALE/SpaceInvaders-v5`) and beats a random-play baseline
-by a wide margin. A **PPO** agent is trained, evaluated, and compared against a
+**Atari Space Invaders** (`ALE/SpaceInvaders-v5`) and more than doubles the score
+of a random-play baseline. A **PPO** agent is trained, evaluated, and compared against a
 random-play baseline with tracked experiments, saved checkpoints, and recorded gameplay.
 
 <video src="https://github.com/user-attachments/assets/b0d9951d-6dbe-4e43-b6e3-461de39d4caa" controls width="600">
@@ -12,15 +12,16 @@ random-play baseline with tracked experiments, saved checkpoints, and recorded g
 
 ## Results
 
-Mean episode reward over 30 evaluation episodes:
+Mean episode reward from evaluation — PPO is the best checkpoint (9.6M steps,
+5-episode eval); random is a 10-episode baseline:
 
 | Agent  | Mean episode reward | Std | Improvement vs random |
 |--------|---------------------|-----|-----------------------|
 | Random | 465                 | 278 | 1.0×                  |
-| PPO    | 1,820               | 610 | 3.9×                  |
+| PPO    | 983                 | 342 | 2.1×                  |
 
-The PPO agent was trained for 10M steps on a cloud GPU and significantly
-outperforms random play.
+The PPO agent was trained for 10M steps on a cloud GPU and more than doubles
+the score of random play.
 
 ## What this project demonstrates
 
