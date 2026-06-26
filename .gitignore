@@ -32,5 +32,4 @@ outputs/
 
 # Local-only docs (ignored for now)
 CLAUDE.md
-README.md
 SETUP.md
