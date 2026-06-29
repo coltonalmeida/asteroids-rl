@@ -6,7 +6,7 @@ __pycache__/
 build/
 dist/
 
-# Experiment artifacts
+# run data
 models/
 videos/
 wandb/
@@ -17,11 +17,11 @@ reports/
 outputs/
 .hydra/
 
-# Secrets / local env
+# envs
 .env
 .env.*
 
-# Tooling
+# cache
 .pytest_cache/
 .ruff_cache/
 
@@ -30,6 +30,6 @@ outputs/
 .vscode/
 .idea/
 
-# Local-only docs (ignored for now)
+# local docs
 CLAUDE.md
 SETUP.md
