@@ -2,12 +2,12 @@
 algo: ppo
 env_id: ALE/SpaceInvaders-v5
 seed: 42
-total_timesteps: 10_000_000  # full run (validate the loop at 1M via CLI override first)
+total_timesteps: 10_000_000  # you can test it with a lower amount of steps first
 
 n_envs: 8
 frame_stack: 4
 
-resume_from: null  # path to a checkpoint .zip to continue an interrupted run; null = fresh start
+resume_from: null  # in the case progress loss, you can save the existing run
 
 policy: CnnPolicy
 hyperparams:
@@ -15,7 +15,7 @@ hyperparams:
   batch_size: 256
   n_epochs: 4
   gamma: 0.99
-  learning_rate: 2.5e-4   # linearly decayed in train.py
+  learning_rate: 2.5e-4   # standard
   clip_range: 0.1
   ent_coef: 0.01
   vf_coef: 0.5
